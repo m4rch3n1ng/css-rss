@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/andybalholm/cascadia"
@@ -114,9 +115,30 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, rss)
 }
 
+type MatchAttr struct {
+	attr    *string
+	matcher cascadia.Matcher
+}
+
+func newMatchAttr(m string) (*MatchAttr, error) {
+	split := strings.SplitN(m, "/", 2)
+
+	var attr string
+	if len(split) == 2 {
+		attr = split[1]
+	}
+
+	matcher, err := cascadia.Parse(split[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return &MatchAttr{attr: &attr, matcher: matcher}, nil
+}
+
 type Extractor struct {
 	title      cascadia.Matcher
-	link       cascadia.Matcher
+	link       *MatchAttr
 	date       cascadia.Matcher
 	dateFormat string
 }
@@ -133,9 +155,9 @@ func newExtractor(query url.Values) (*Extractor, error) {
 	}
 
 	linkQuery := query.Get("link")
-	var link cascadia.Matcher
+	var link *MatchAttr
 	if linkQuery != "" {
-		link, err = cascadia.Parse(linkQuery)
+		link, err = newMatchAttr(linkQuery)
 		if err != nil {
 			return nil, err
 		}
@@ -159,6 +181,28 @@ func newExtractor(query url.Values) (*Extractor, error) {
 	return &Extractor{title, link, date, dateFormat}, nil
 }
 
+func matchAttr(n *html.Node, m MatchAttr) *string {
+	match := cascadia.Query(n, m.matcher)
+	if match == nil {
+		return nil
+	}
+
+	if m.attr != nil {
+
+		var attr *string
+		for _, a := range match.Attr {
+			if *m.attr == a.Key {
+				attr = &a.Val
+				break
+			}
+		}
+
+		return attr
+	} else {
+		return &match.FirstChild.Data
+	}
+}
+
 func extract(node *html.Node, extractor Extractor) *feeds.Item {
 	title := cascadia.Query(node, extractor.title)
 	if title == nil {
@@ -168,9 +212,9 @@ func extract(node *html.Node, extractor Extractor) *feeds.Item {
 	item := feeds.Item{Title: title.FirstChild.Data}
 
 	if extractor.link != nil {
-		link := cascadia.Query(node, extractor.link)
+		link := matchAttr(node, *extractor.link)
 		if link != nil {
-			item.Link = &feeds.Link{Href: link.FirstChild.Data}
+			item.Link = &feeds.Link{Href: *link}
 		}
 	}
 
