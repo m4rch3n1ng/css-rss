@@ -105,7 +105,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	fmt.Fprintf(w, "yo, %v", rss)
+	io.WriteString(w, rss)
 }
 
 type Extractor struct {
