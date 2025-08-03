@@ -92,7 +92,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	title := cascadia.Query(doc, titleSelector).FirstChild.Data
 	feed := &feeds.Feed{
 		Title: title,
-		Link:  &feeds.Link{Href: fmt.Sprintf("%s://%s", url.Scheme, url.Host)},
+		Link:  &feeds.Link{Href: url.String()},
 	}
 
 	q := cascadia.QueryAll(doc, sel)
