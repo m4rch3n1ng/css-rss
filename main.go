@@ -105,7 +105,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	rss, err := feed.ToRss()
+	rss, err := feed.ToAtom()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to convert to rss feed (%s)", err), http.StatusInternalServerError)
 	}
