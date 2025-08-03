@@ -5,8 +5,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/andybalholm/cascadia"
+	"github.com/gorilla/feeds"
 	"golang.org/x/net/html"
 )
 
@@ -15,6 +17,8 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
+var titleSelector cascadia.Matcher = cascadia.MustCompile("title")
+
 func handleRequest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	if len(query) == 0 {
@@ -22,10 +26,14 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := query.Get("url")
-	if url == "" {
+	urlQ := query.Get("url")
+	if urlQ == "" {
 		http.Error(w, "missing url", http.StatusBadRequest)
 		return
+	}
+	url, err := url.Parse(urlQ)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	selector := query.Get("select")
@@ -39,13 +47,9 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	extractQ := query.Get("extract")
-	var extract cascadia.Matcher
-	if extractQ != "" {
-		extract, err = cascadia.Parse(extractQ)
-		if err != nil {
-			log.Fatal(err)
-		}
+	extractor, err := newExtractor(query)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	excludeQ := query.Get("exclude")
@@ -57,7 +61,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, urlQ, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
@@ -78,23 +82,91 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	q := cascadia.QueryAll(doc, sel)
+	title := cascadia.Query(doc, titleSelector).FirstChild.Data
+	feed := &feeds.Feed{
+		Title: title,
+		Link:  &feeds.Link{Href: fmt.Sprintf("%s://%s", url.Scheme, url.Host)},
+	}
 
-	var m []string
-	for _, el := range q {
-		if exclude != nil && len(cascadia.QueryAll(el, exclude)) != 0 {
+	q := cascadia.QueryAll(doc, sel)
+	for _, n := range q {
+		if exclude != nil && len(cascadia.QueryAll(n, exclude)) != 0 {
 			continue
 		}
 
-		var data string
-		if extract != nil {
-			data = cascadia.Query(el, extract).FirstChild.Data
-		} else {
-			data = el.FirstChild.Data
+		item := extract(n, *extractor)
+		if item != nil {
+			feed.Items = append(feed.Items, item)
 		}
-
-		m = append(m, data)
 	}
 
-	fmt.Fprintf(w, "yo, %v", m)
+	rss, err := feed.ToRss()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintf(w, "yo, %v", rss)
+}
+
+type Extractor struct {
+	title cascadia.Matcher
+	link  cascadia.Matcher
+	date  cascadia.Matcher
+}
+
+func newExtractor(query url.Values) (*Extractor, error) {
+	titleQuery := query.Get("title")
+	if titleQuery == "" {
+		log.Fatal("title extract query empty")
+	}
+
+	title, err := cascadia.Parse(titleQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	linkQuery := query.Get("link")
+	var link cascadia.Matcher
+	if linkQuery != "" {
+		link, err = cascadia.Parse(linkQuery)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	dateQuery := query.Get("date")
+	var date cascadia.Matcher
+	if dateQuery != "" {
+		date, err = cascadia.Parse(dateQuery)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Extractor{title, link, date}, nil
+}
+
+func extract(node *html.Node, extractor Extractor) *feeds.Item {
+	title := cascadia.Query(node, extractor.title)
+	if title == nil {
+		return nil
+	}
+
+	item := feeds.Item{Title: title.FirstChild.Data}
+
+	if extractor.link != nil {
+		link := cascadia.Query(node, extractor.link)
+		if link != nil {
+			item.Link = &feeds.Link{Href: link.FirstChild.Data}
+		}
+	}
+
+	if extractor.date != nil {
+		date := cascadia.Query(node, extractor.date)
+		if date != nil {
+			item.Description = date.FirstChild.Data
+		}
+	}
+
+	return &item
 }
