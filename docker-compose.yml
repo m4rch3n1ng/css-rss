@@ -1,0 +1,6 @@
+services:
+  website:
+    build: .
+    container_name: css-rss
+    ports:
+      - 31919:8080
