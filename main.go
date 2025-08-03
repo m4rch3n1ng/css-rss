@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/andybalholm/cascadia"
 	"github.com/gorilla/feeds"
@@ -114,9 +115,10 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 type Extractor struct {
-	title cascadia.Matcher
-	link  cascadia.Matcher
-	date  cascadia.Matcher
+	title      cascadia.Matcher
+	link       cascadia.Matcher
+	date       cascadia.Matcher
+	dateFormat string
 }
 
 func newExtractor(query url.Values) (*Extractor, error) {
@@ -140,15 +142,21 @@ func newExtractor(query url.Values) (*Extractor, error) {
 	}
 
 	dateQuery := query.Get("date")
-	var date cascadia.Matcher
-	if dateQuery != "" {
-		date, err = cascadia.Parse(dateQuery)
-		if err != nil {
-			return nil, err
-		}
+	if dateQuery == "" {
+		return nil, errors.New("date extract query empty")
 	}
 
-	return &Extractor{title, link, date}, nil
+	date, err := cascadia.Parse(dateQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	dateFormat := query.Get("dateFormat")
+	if dateQuery == "" {
+		return nil, errors.New("dateFormat query empty")
+	}
+
+	return &Extractor{title, link, date, dateFormat}, nil
 }
 
 func extract(node *html.Node, extractor Extractor) *feeds.Item {
@@ -166,11 +174,15 @@ func extract(node *html.Node, extractor Extractor) *feeds.Item {
 		}
 	}
 
-	if extractor.date != nil {
-		date := cascadia.Query(node, extractor.date)
-		if date != nil {
-			item.Description = date.FirstChild.Data
+	date := cascadia.Query(node, extractor.date)
+	if date != nil {
+		date, err := time.Parse(extractor.dateFormat, date.FirstChild.Data)
+		if err != nil {
+			return nil
 		}
+
+		item.Updated = date
+		item.Id = date.String()
 	}
 
 	return &item
