@@ -104,6 +104,10 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		item := extract(n, *extractor)
 		if item != nil {
 			feed.Items = append(feed.Items, item)
+
+			if feed.Updated.IsZero() || feed.Updated.Before(item.Updated) {
+				feed.Updated = item.Updated
+			}
 		}
 	}
 
@@ -188,7 +192,6 @@ func matchAttr(n *html.Node, m MatchAttr) *string {
 	}
 
 	if m.attr != nil {
-
 		var attr *string
 		for _, a := range match.Attr {
 			if *m.attr == a.Key {
