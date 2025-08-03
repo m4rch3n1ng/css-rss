@@ -25,7 +25,7 @@ var titleSelector cascadia.Matcher = cascadia.MustCompile("title")
 func handleRequest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	if len(query) == 0 {
-		io.WriteString(w, "yay")
+		http.ServeFile(w, r, "index.html")
 		return
 	}
 

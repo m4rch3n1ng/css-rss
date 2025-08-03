@@ -11,10 +11,11 @@ COPY main.go .
 
 RUN go build .
 
+WORKDIR /
+
 FROM alpine
 
-WORKDIR /app
-
+COPY index.html /index.html
 COPY --from=build /app/css-rss /css-rss
 
 ENTRYPOINT ["/css-rss"]
