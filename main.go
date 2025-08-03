@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -28,12 +29,13 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	urlQ := query.Get("url")
 	if urlQ == "" {
-		http.Error(w, "missing url", http.StatusBadRequest)
+		http.Error(w, "missing url in query", http.StatusBadRequest)
 		return
 	}
 	url, err := url.Parse(urlQ)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, fmt.Sprintf("failed to parse url %v", urlQ), http.StatusBadRequest)
+		return
 	}
 
 	selector := query.Get("select")
@@ -44,12 +46,14 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	sel, err := cascadia.Parse(selector)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, fmt.Sprintf("failed to parse selector %s (%s)", selector, err.Error()), http.StatusBadRequest)
+		return
 	}
 
 	extractor, err := newExtractor(query)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	excludeQ := query.Get("exclude")
@@ -57,7 +61,8 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	if excludeQ != "" {
 		exclude, err = cascadia.Parse(excludeQ)
 		if err != nil {
-			log.Fatal(err)
+			http.Error(w, fmt.Sprintf("failed to parse selector %s (%s)", excludeQ, err.Error()), http.StatusBadRequest)
+			return
 		}
 	}
 
@@ -79,7 +84,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	defer res.Body.Close()
 	doc, err := html.Parse(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, fmt.Sprintf("failed to parse html (%s)", err.Error()), http.StatusBadRequest)
 	}
 
 	title := cascadia.Query(doc, titleSelector).FirstChild.Data
@@ -102,7 +107,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	rss, err := feed.ToRss()
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, fmt.Sprintf("failed to convert to rss feed (%s)", err), http.StatusInternalServerError)
 	}
 
 	io.WriteString(w, rss)
@@ -117,7 +122,7 @@ type Extractor struct {
 func newExtractor(query url.Values) (*Extractor, error) {
 	titleQuery := query.Get("title")
 	if titleQuery == "" {
-		log.Fatal("title extract query empty")
+		return nil, errors.New("title extract query empty")
 	}
 
 	title, err := cascadia.Parse(titleQuery)
