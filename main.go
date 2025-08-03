@@ -34,6 +34,29 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sel, err := cascadia.Parse(selector)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	extractQ := query.Get("extract")
+	var extract cascadia.Matcher
+	if extractQ != "" {
+		extract, err = cascadia.Parse(extractQ)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	excludeQ := query.Get("exclude")
+	var exclude cascadia.Matcher
+	if excludeQ != "" {
+		exclude, err = cascadia.Parse(excludeQ)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -55,34 +78,11 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	sel, err := cascadia.Parse(selector)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	q := cascadia.QueryAll(doc, sel)
-
-	extractQ := query.Get("extract")
-	var extract cascadia.Matcher
-	if extractQ != "" {
-		extract, err = cascadia.Parse(extractQ)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	filterQ := query.Get("filter")
-	var filter cascadia.Matcher
-	if filterQ != "" {
-		filter, err = cascadia.Parse(filterQ)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 
 	var m []string
 	for _, el := range q {
-		if filter != nil && len(cascadia.QueryAll(el, filter)) != 0 {
+		if exclude != nil && len(cascadia.QueryAll(el, exclude)) != 0 {
 			continue
 		}
 
