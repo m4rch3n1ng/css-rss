@@ -46,22 +46,22 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sel, err := cascadia.Parse(selector)
+	sel, err := newMultiMatch(selector)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to parse selector %s (%s)", selector, err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	extractor, err := newExtractor(query)
+	extractor, err := newItemExtractor(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	excludeQ := query.Get("exclude")
-	var exclude cascadia.Matcher
+	var exclude *MultiMatcher
 	if excludeQ != "" {
-		exclude, err = cascadia.Parse(excludeQ)
+		exclude, err = newMultiMatch(excludeQ)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to parse selector %s (%s)", excludeQ, err.Error()), http.StatusBadRequest)
 			return
@@ -102,9 +102,9 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		Link:  &feeds.Link{Href: url.String()},
 	}
 
-	q := cascadia.QueryAll(doc, sel)
+	q := sel.queryAll(doc)
 	for _, n := range q {
-		if exclude != nil && len(cascadia.QueryAll(n, exclude)) != 0 {
+		if exclude != nil && len(exclude.queryAll(n)) != 0 {
 			continue
 		}
 
@@ -127,17 +127,45 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, rss)
 }
 
-type MatchAttr struct {
+type MultiMatcher []cascadia.Matcher
+
+func newMultiMatch(sel string) (*MultiMatcher, error) {
+	sels := strings.Split(sel, ",")
+
+	var m MultiMatcher
+	for _, s := range sels {
+		mat, err := cascadia.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+
+		m = append(m, mat)
+	}
+
+	return &m, nil
+}
+
+func (m MultiMatcher) queryAll(doc *html.Node) []*html.Node {
+	var nodes []*html.Node
+	for _, m := range m {
+		n := cascadia.QueryAll(doc, m)
+		nodes = append(nodes, n...)
+	}
+
+	return nodes
+}
+
+type AttrExtractor struct {
 	attr    *string
 	matcher cascadia.Matcher
 }
 
-func newMatchAttr(m string) (*MatchAttr, error) {
+func newAttrExtractor(m string) (*AttrExtractor, error) {
 	split := strings.SplitN(m, "/", 2)
 
 	var attr string
 	if len(split) == 2 {
-		attr = split[1]
+		attr = strings.TrimSpace(split[1])
 	}
 
 	matcher, err := cascadia.Parse(split[0])
@@ -145,17 +173,17 @@ func newMatchAttr(m string) (*MatchAttr, error) {
 		return nil, err
 	}
 
-	return &MatchAttr{attr: &attr, matcher: matcher}, nil
+	return &AttrExtractor{attr: &attr, matcher: matcher}, nil
 }
 
-type Extractor struct {
+type ItemExtractor struct {
 	title      cascadia.Matcher
-	link       *MatchAttr
+	link       *AttrExtractor
 	date       cascadia.Matcher
 	dateFormat string
 }
 
-func newExtractor(query url.Values) (*Extractor, error) {
+func newItemExtractor(query url.Values) (*ItemExtractor, error) {
 	titleQuery := query.Get("title")
 	if titleQuery == "" {
 		return nil, errors.New("title extract query empty")
@@ -167,9 +195,9 @@ func newExtractor(query url.Values) (*Extractor, error) {
 	}
 
 	linkQuery := query.Get("link")
-	var link *MatchAttr
+	var link *AttrExtractor
 	if linkQuery != "" {
-		link, err = newMatchAttr(linkQuery)
+		link, err = newAttrExtractor(linkQuery)
 		if err != nil {
 			return nil, err
 		}
@@ -190,10 +218,10 @@ func newExtractor(query url.Values) (*Extractor, error) {
 		return nil, errors.New("dateFormat query empty")
 	}
 
-	return &Extractor{title, link, date, dateFormat}, nil
+	return &ItemExtractor{title, link, date, dateFormat}, nil
 }
 
-func (m MatchAttr) extractAttr(n *html.Node) *string {
+func (m AttrExtractor) extractAttr(n *html.Node) *string {
 	match := cascadia.Query(n, m.matcher)
 	if match == nil {
 		return nil
@@ -214,7 +242,7 @@ func (m MatchAttr) extractAttr(n *html.Node) *string {
 	}
 }
 
-func (e Extractor) extract(n *html.Node) *feeds.Item {
+func (e ItemExtractor) extract(n *html.Node) *feeds.Item {
 	title := cascadia.Query(n, e.title)
 	if title == nil {
 		return nil
