@@ -3,14 +3,101 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<style>
+			/* style reset */
+
+			:root {
+				font-size: 16px;
+
+				/* tailwind violet color scheme */
+				--color-accent-300: oklch(81.1% 0.111 293.571);
+				--color-accent-400: oklch(70.2% 0.183 293.541);
+				--color-accent-500: oklch(60.6% 0.25 292.717);
+			}
+
+			@layer base {
+				* {
+					padding: 0;
+					margin: 0;
+					box-sizing: border-box;
+					border: 0 solid;
+					border-radius: 0;
+				}
+
+				body {
+					font-family: ui-monospace, monospace;
+					margin: 16px;
+					line-height: 1.5;
+				}
+
+				button,
+				input,
+				select {
+					font: inherit;
+				}
+
+				button {
+					box-shadow: none;
+					background-color: transparent;
+					cursor: pointer;
+				}
+			}
+
+			/* custom styles */
+
+			h3 {
+				margin: 0px 0px 12px 8px;
+			}
+
+			form {
+				display: grid;
+				gap: 12px;
+				grid-template-columns: 1fr 1fr;
+				width: 600px;
+			}
+
+			input {
+				padding-left: 4px;
+				width: 100%;
+			}
+
+			input:focus {
+				outline: 2px solid var(--color-accent-400);
+			}
+
+			.span-2 {
+				grid-column: span 2;
+			}
+
+			.submit-container {
+				display: flex;
+				justify-content: center;
+				padding: 4px 0;
+			}
+
+			.submit {
+				padding: 4px 12px;
+				border-radius: 8px;
+				background-color: var(--color-accent-300);
+			}
+
+			.submit:focus {
+				outline: 2px solid var(--color-accent-400);
+			}
+
+			.submit:hover {
+				background-color: var(--color-accent-400);
+			}
+		</style>
 	</head>
 </html>
 <body>
 	<h3>create your rss feed</h3>
 
 	<form>
-		<label>
-			url
+		<label class="span-2">
+			<div>url</div>
 			<input
 				name="url"
 				required
@@ -18,39 +105,37 @@
 			/>
 		</label>
 
-		<br />
-
 		<label>
-			select <input name="select" required placeholder=".episodes > div" />
+			<div>select</div>
+			<input name="select" required placeholder=".episodes > div" />
 		</label>
 		<label>
-			title <input name="title" required placeholder=".title > a" />
+			<div>title</div>
+			<input name="title" required placeholder=".title > a" />
 		</label>
 
-		<br />
-
-		<label>date <input name="date" required placeholder=".air-date" /></label>
+		<label>
+			<div>date</div>
+			<input name="date" required placeholder=".air-date" />
+		</label>
 
 		<label>
-			date format
+			<div>date format</div>
 			<input name="dateFormat" required placeholder="Jan 02, 2006" />
 		</label>
 
-		<br />
-
 		<label>
-			link <input name="link" required placeholder=".title > a/href" />
+			<div>link</div>
+			<input name="link" required placeholder=".title > a/href" />
 		</label>
 
-		<br />
-
 		<label>
-			exclude
+			<div>exclude</div>
 			<input name="exclude" placeholder=".cover.missing" />
 		</label>
 
-		<br />
-
-		<button>create rss feed</button>
+		<div class="span-2 submit-container">
+			<button class="submit">create rss feed</button>
+		</div>
 	</form>
 </body>
