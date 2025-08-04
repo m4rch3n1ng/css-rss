@@ -1,4 +1,3 @@
-
 <p align="center">create an rss feed via css selectors</p>
 
 you can run the http server via

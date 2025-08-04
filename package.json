@@ -1,0 +1,12 @@
+{
+	"name": "css-rss",
+	"private": true,
+	"version": "0.1.0",
+	"author": "may",
+	"scripts": {
+		"fmt": "prettier --write ."
+	},
+	"devDependencies": {
+		"prettier": "^3.6.2"
+	}
+}
