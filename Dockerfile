@@ -19,4 +19,3 @@ COPY index.html /index.html
 COPY --from=build /app/css-rss /css-rss
 
 ENTRYPOINT ["/css-rss"]
-

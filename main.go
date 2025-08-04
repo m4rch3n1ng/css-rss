@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -42,7 +41,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	selector := query.Get("select")
 	if selector == "" {
-		http.Error(w, "missing selector", http.StatusBadRequest)
+		http.Error(w, "missing selector in query", http.StatusBadRequest)
 		return
 	}
 
@@ -84,6 +83,11 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if res.StatusCode >= 300 {
+		http.Error(w, fmt.Sprintf("%s responded with status %s", url, res.Status), res.StatusCode)
+		return
+	}
+
 	defer res.Body.Close()
 	doc, err := html.Parse(res.Body)
 	if err != nil {
@@ -93,7 +97,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	title := cascadia.Query(doc, titleSelector)
 	if title == nil {
-		http.Error(w, "failed to query title", http.StatusBadRequest)
+		http.Error(w, "failed to query html <title>", http.StatusBadRequest)
 		return
 	}
 
@@ -108,13 +112,16 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		item := extractor.extract(n)
-		if item != nil {
-			feed.Items = append(feed.Items, item)
+		item, err := extractor.extract(n)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
-			if feed.Updated.Before(item.Updated) {
-				feed.Updated = item.Updated
-			}
+		feed.Items = append(feed.Items, item)
+
+		if feed.Updated.Before(item.Updated) {
+			feed.Updated = item.Updated
 		}
 	}
 
@@ -124,7 +131,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, rss)
+	w.Write([]byte(rss))
 }
 
 type MultiMatcher []cascadia.Matcher
@@ -186,7 +193,17 @@ type ItemExtractor struct {
 func newItemExtractor(query url.Values) (*ItemExtractor, error) {
 	titleQuery := query.Get("title")
 	if titleQuery == "" {
-		return nil, errors.New("title extract query empty")
+		return nil, errors.New("missing selector for title in query")
+	}
+
+	dateQuery := query.Get("date")
+	if dateQuery == "" {
+		return nil, errors.New("missing selector for date in query")
+	}
+
+	dateFormat := query.Get("dateFormat")
+	if dateFormat == "" {
+		return nil, errors.New("missing dateFormat in query")
 	}
 
 	title, err := cascadia.Parse(titleQuery)
@@ -203,19 +220,9 @@ func newItemExtractor(query url.Values) (*ItemExtractor, error) {
 		}
 	}
 
-	dateQuery := query.Get("date")
-	if dateQuery == "" {
-		return nil, errors.New("date extract query empty")
-	}
-
 	date, err := cascadia.Parse(dateQuery)
 	if err != nil {
 		return nil, err
-	}
-
-	dateFormat := query.Get("dateFormat")
-	if dateQuery == "" {
-		return nil, errors.New("dateFormat query empty")
 	}
 
 	return &ItemExtractor{title, link, date, dateFormat}, nil
@@ -242,10 +249,10 @@ func (m AttrExtractor) extractAttr(n *html.Node) *string {
 	}
 }
 
-func (e ItemExtractor) extract(n *html.Node) *feeds.Item {
+func (e ItemExtractor) extract(n *html.Node) (*feeds.Item, error) {
 	title := cascadia.Query(n, e.title)
 	if title == nil {
-		return nil
+		return nil, errors.New("failed to query the title")
 	}
 
 	item := feeds.Item{Title: title.FirstChild.Data}
@@ -261,12 +268,12 @@ func (e ItemExtractor) extract(n *html.Node) *feeds.Item {
 	if date != nil {
 		date, err := time.Parse(e.dateFormat, date.FirstChild.Data)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 
 		item.Updated = date
 		item.Id = date.String()
 	}
 
-	return &item
+	return &item, nil
 }
