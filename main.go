@@ -71,6 +71,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	req, err := http.NewRequest(http.MethodGet, urlQ, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (platform; rv:gecko-version) Gecko/gecko-trail Firefox/firefox-version")
@@ -87,11 +88,17 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	doc, err := html.Parse(res.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to parse html (%s)", err.Error()), http.StatusBadRequest)
+		return
 	}
 
-	title := cascadia.Query(doc, titleSelector).FirstChild.Data
+	title := cascadia.Query(doc, titleSelector)
+	if title == nil {
+		http.Error(w, "failed to query title", http.StatusBadRequest)
+		return
+	}
+
 	feed := &feeds.Feed{
-		Title: title,
+		Title: title.FirstChild.Data,
 		Link:  &feeds.Link{Href: url.String()},
 	}
 
@@ -101,11 +108,11 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		item := extract(n, *extractor)
+		item := extractor.extract(n)
 		if item != nil {
 			feed.Items = append(feed.Items, item)
 
-			if feed.Updated.IsZero() || feed.Updated.Before(item.Updated) {
+			if feed.Updated.Before(item.Updated) {
 				feed.Updated = item.Updated
 			}
 		}
@@ -114,6 +121,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	rss, err := feed.ToAtom()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to convert to rss feed (%s)", err), http.StatusInternalServerError)
+		return
 	}
 
 	io.WriteString(w, rss)
@@ -185,7 +193,7 @@ func newExtractor(query url.Values) (*Extractor, error) {
 	return &Extractor{title, link, date, dateFormat}, nil
 }
 
-func matchAttr(n *html.Node, m MatchAttr) *string {
+func (m MatchAttr) extractAttr(n *html.Node) *string {
 	match := cascadia.Query(n, m.matcher)
 	if match == nil {
 		return nil
@@ -206,24 +214,24 @@ func matchAttr(n *html.Node, m MatchAttr) *string {
 	}
 }
 
-func extract(node *html.Node, extractor Extractor) *feeds.Item {
-	title := cascadia.Query(node, extractor.title)
+func (e Extractor) extract(n *html.Node) *feeds.Item {
+	title := cascadia.Query(n, e.title)
 	if title == nil {
 		return nil
 	}
 
 	item := feeds.Item{Title: title.FirstChild.Data}
 
-	if extractor.link != nil {
-		link := matchAttr(node, *extractor.link)
+	if e.link != nil {
+		link := e.link.extractAttr(n)
 		if link != nil {
 			item.Link = &feeds.Link{Href: *link}
 		}
 	}
 
-	date := cascadia.Query(node, extractor.date)
+	date := cascadia.Query(n, e.date)
 	if date != nil {
-		date, err := time.Parse(extractor.dateFormat, date.FirstChild.Data)
+		date, err := time.Parse(e.dateFormat, date.FirstChild.Data)
 		if err != nil {
 			return nil
 		}
