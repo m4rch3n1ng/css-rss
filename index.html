@@ -4,6 +4,8 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
+		<title>css rss</title>
+
 		<style>
 			/* style reset */
 
@@ -14,6 +16,10 @@
 				--color-accent-300: oklch(81.1% 0.111 293.571);
 				--color-accent-400: oklch(70.2% 0.183 293.541);
 				--color-accent-500: oklch(60.6% 0.25 292.717);
+				/* misc tailwind variables */
+				--color-neutral-200: oklch(92.2% 0 0);
+				--shadow-md:
+					0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 			}
 
 			@layer base {
@@ -55,6 +61,14 @@
 				background: var(--color-accent-300);
 			}
 
+			.span-2 {
+				grid-column: span 2;
+			}
+
+			.nowrap {
+				white-space: nowrap;
+			}
+
 			h3 {
 				margin: 0px 0px 16px 8px;
 				font-size: 1.25rem;
@@ -84,14 +98,32 @@
 
 			a {
 				color: var(--color-accent-500);
+				position: relative;
 			}
 
 			a:focus-visible {
 				outline: 2px solid var(--color-accent-400);
 			}
 
-			.span-2 {
-				grid-column: span 2;
+			a::before {
+				content: "";
+				position: absolute;
+				display: block;
+				width: 100%;
+				height: 2px;
+				bottom: -1px;
+				left: 0;
+				background-color: var(--color-accent-400);
+				transform: scaleX(0);
+				transition: transform 0.3s ease;
+			}
+
+			a:hover::before {
+				transform: scaleX(1);
+			}
+
+			a:focus-visible::before {
+				transform: scaleX(1);
 			}
 
 			.submit-container {
@@ -113,9 +145,54 @@
 			.submit:hover {
 				background-color: var(--color-accent-400);
 			}
+
+			code {
+				background-color: var(--color-neutral-200);
+				padding: 1px 6px;
+				border-radius: 4px;
+			}
+
+			.info {
+				cursor: help;
+				position: relative;
+				color: var(--color-accent-500);
+			}
+
+			.info:hover > .info-box-wrapper {
+				display: block;
+			}
+
+			.info > .info-box-wrapper {
+				display: none;
+				position: absolute;
+				top: 100%;
+				left: 0;
+				padding-top: 6px;
+				z-index: 10;
+			}
+
+			.info-box-wrapper > .info-box {
+				cursor: auto;
+				line-height: normal;
+				padding: 4px 12px;
+				margin-left: -24px;
+				z-index: 10;
+				width: max-content;
+				max-width: 400px;
+				color: black;
+				background-color: white;
+				border: 1px solid var(--color-neutral-200);
+				border-radius: 8px;
+				box-shadow: var(--shadow-md);
+			}
+
+			.info-box-wrapper > .info-box > p {
+				padding: 3px 0;
+			}
 		</style>
 	</head>
 </html>
+
 <body>
 	<h3>create your rss feed</h3>
 
@@ -130,34 +207,154 @@
 		</label>
 
 		<label>
-			<div>select</div>
+			<div>
+				select
+				<span class="info">
+					(?)
+					<div class="info-box-wrapper">
+						<div class="info-box">
+							<p>
+								select the items that to include in the rss feed via
+								<a
+									class="nowrap"
+									target="_blank"
+									href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Basic_selectors"
+									>css selectors</a
+								>.
+							</p>
+							<p>
+								you can specify multiple selectors by separating them with a
+								<code>,</code>.
+							</p>
+						</div>
+					</div>
+				</span>
+			</div>
 			<input name="select" required placeholder=".episodes > div" />
 		</label>
 		<label>
-			<div>title</div>
+			<div>
+				title
+				<span class="info">
+					(?)
+					<div class="info-box-wrapper">
+						<div class="info-box">
+							<p>
+								a
+								<a
+									class="nowrap"
+									target="_blank"
+									href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Basic_selectors"
+									>css selector</a
+								>, for the element, that contains the text for the title.
+							</p>
+						</div>
+					</div>
+				</span>
+			</div>
 			<input name="title" required placeholder=".title > a" />
 		</label>
 
 		<label>
-			<div>date</div>
+			<div>
+				date
+				<span class="info">
+					(?)
+					<div class="info-box-wrapper">
+						<div class="info-box">
+							<p>
+								a
+								<a
+									class="nowrap"
+									target="_blank"
+									href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Basic_selectors"
+									>css selector</a
+								>, for the element, that contains the date.
+							</p>
+						</div>
+					</div>
+				</span>
+			</div>
 			<input name="date" required placeholder=".air-date" />
 		</label>
 
 		<label>
 			<div>
 				date format
-				<a target="_blank" href="https://pkg.go.dev/time#Layout">(?)</a>
+				<span class="info">
+					(?)
+					<div class="info-box-wrapper">
+						<div class="info-box">
+							<p>the format of the date given by the date selector</p>
+							<p>
+								the date format is in the format of the
+								<a
+									class="nowrap"
+									target="_blank"
+									href="https://pkg.go.dev/time#Layout"
+									>go language</a
+								>.
+							</p>
+						</div>
+					</div>
+				</span>
 			</div>
 			<input name="dateFormat" required placeholder="Jan 02, 2006" />
 		</label>
 
 		<label>
-			<div>link</div>
+			<div>
+				link
+				<span class="info">
+					(?)
+					<div class="info-box-wrapper">
+						<div class="info-box">
+							<p>
+								takes a selector/attr combinator, optionally split by a
+								<code>/</code>.
+							</p>
+							<p>
+								takes a
+								<a
+									class="nowrap"
+									target="_blank"
+									href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Basic_selectors"
+									>css selector</a
+								>, to select an element, but can additionally take the name of
+								an attribute, after the <code>/</code>, whose value is then
+								extracted instead of the text.
+							</p>
+						</div>
+					</div>
+				</span>
+			</div>
 			<input name="link" required placeholder=".title > a/href" />
 		</label>
 
 		<label>
-			<div>exclude</div>
+			<div>
+				exclude
+				<span class="info">
+					(?)
+					<div class="info-box-wrapper">
+						<div class="info-box">
+							<p>
+								exclude items, that match the given
+								<a
+									class="nowrap"
+									target="_blank"
+									href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Basic_selectors"
+									>css selector</a
+								>.
+							</p>
+							<p>
+								you can specify multiple selectors by separating them with a
+								<code>,</code>.
+							</p>
+						</div>
+					</div>
+				</span>
+			</div>
 			<input name="exclude" placeholder=".cover.missing" />
 		</label>
 
