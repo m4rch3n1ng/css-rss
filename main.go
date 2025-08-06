@@ -200,13 +200,20 @@ func newItemExtractor(query url.Values) (*ItemExtractor, error) {
 	}
 
 	dateQuery := query.Get("date")
-	if dateQuery == "" {
-		return nil, errors.New("missing selector for date in query")
-	}
 
-	dateFormat := query.Get("dateFormat")
-	if dateFormat == "" {
-		return nil, errors.New("missing dateFormat in query")
+	var date cascadia.Matcher
+	var dateFormat string
+	if dateQuery != "" {
+		dateFormat = query.Get("dateFormat")
+		if dateFormat == "" {
+			return nil, errors.New("missing dateFormat in query")
+		}
+
+		var err error
+		date, err = cascadia.Parse(dateQuery)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	title, err := cascadia.Parse(titleQuery)
@@ -223,9 +230,8 @@ func newItemExtractor(query url.Values) (*ItemExtractor, error) {
 		}
 	}
 
-	date, err := cascadia.Parse(dateQuery)
-	if err != nil {
-		return nil, err
+	if link == nil && date == nil {
+		return nil, errors.New("neither date nor link selector was found in query")
 	}
 
 	return &ItemExtractor{title, link, date, dateFormat}, nil
@@ -268,17 +274,19 @@ func (e ItemExtractor) extract(n *html.Node) (*feeds.Item, error) {
 		}
 	}
 
-	date := cascadia.Query(n, e.date)
-	if date != nil {
-		date, err := time.Parse(e.dateFormat, date.FirstChild.Data)
-		if err != nil {
-			return nil, err
-		}
+	if e.date != nil {
+		date := cascadia.Query(n, e.date)
+		if date != nil {
+			date, err := time.Parse(e.dateFormat, date.FirstChild.Data)
+			if err != nil {
+				return nil, err
+			}
 
-		item.Updated = date
+			item.Updated = date
 
-		if item.Id == "" {
-			item.Id = date.String()
+			if item.Id == "" {
+				item.Id = date.String()
+			}
 		}
 	}
 
