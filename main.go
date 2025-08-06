@@ -166,7 +166,7 @@ func (m MultiMatcher) queryAll(doc *html.Node) []*html.Node {
 }
 
 type AttrExtractor struct {
-	attr    *string
+	attr    string
 	matcher cascadia.Matcher
 }
 
@@ -183,7 +183,7 @@ func newAttrExtractor(m string) (*AttrExtractor, error) {
 		return nil, err
 	}
 
-	return &AttrExtractor{&attr, matcher}, nil
+	return &AttrExtractor{attr, matcher}, nil
 }
 
 type ItemExtractor struct {
@@ -243,10 +243,10 @@ func (m AttrExtractor) extractAttr(n *html.Node) *string {
 		return nil
 	}
 
-	if m.attr != nil {
+	if m.attr != "" {
 		var attr *string
 		for _, a := range match.Attr {
-			if *m.attr == a.Key {
+			if m.attr == a.Key {
 				attr = &a.Val
 				break
 			}
@@ -268,6 +268,7 @@ func (e ItemExtractor) extract(n *html.Node) (*feeds.Item, error) {
 
 	if e.link != nil {
 		link := e.link.extractAttr(n)
+
 		if link != nil {
 			item.Link = &feeds.Link{Href: *link}
 			item.Id = *link
