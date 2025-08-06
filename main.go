@@ -95,14 +95,17 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title := cascadia.Query(doc, titleSelector)
-	if title == nil {
-		http.Error(w, "failed to query html <title>", http.StatusBadRequest)
-		return
+	titleElement := cascadia.Query(doc, titleSelector)
+
+	var title string
+	if titleElement != nil {
+		title = titleElement.FirstChild.Data
+	} else {
+		title = url.String()
 	}
 
 	feed := &feeds.Feed{
-		Title: title.FirstChild.Data,
+		Title: title,
 		Link:  &feeds.Link{Href: url.String()},
 	}
 
@@ -180,7 +183,7 @@ func newAttrExtractor(m string) (*AttrExtractor, error) {
 		return nil, err
 	}
 
-	return &AttrExtractor{attr: &attr, matcher: matcher}, nil
+	return &AttrExtractor{&attr, matcher}, nil
 }
 
 type ItemExtractor struct {
@@ -261,6 +264,7 @@ func (e ItemExtractor) extract(n *html.Node) (*feeds.Item, error) {
 		link := e.link.extractAttr(n)
 		if link != nil {
 			item.Link = &feeds.Link{Href: *link}
+			item.Id = *link
 		}
 	}
 
@@ -272,7 +276,10 @@ func (e ItemExtractor) extract(n *html.Node) (*feeds.Item, error) {
 		}
 
 		item.Updated = date
-		item.Id = date.String()
+
+		if item.Id == "" {
+			item.Id = date.String()
+		}
 	}
 
 	return &item, nil
