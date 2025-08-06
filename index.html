@@ -190,6 +190,33 @@
 				padding: 3px 0;
 			}
 		</style>
+
+		<script type="module">
+			const dateInput = document.querySelector("input#date");
+			const dateFormatInput = document.querySelector("input#date-format");
+			const linkInput = document.querySelector("input#link");
+
+			dateInput.required = linkInput.value === "";
+			linkInput.required = dateInput.value === "";
+
+			dateInput.addEventListener("input", (event) => {
+				if (event.target.value === "") {
+					dateFormatInput.required = false;
+					linkInput.required = true;
+				} else {
+					dateFormatInput.required = true;
+					linkInput.required = false;
+				}
+			});
+
+			linkInput.addEventListener("input", (event) => {
+				if (event.target.value === "") {
+					dateInput.required = true;
+				} else {
+					dateInput.required = false;
+				}
+			});
+		</script>
 	</head>
 </html>
 
@@ -275,7 +302,7 @@
 					</div>
 				</span>
 			</div>
-			<input name="date" required placeholder=".air-date" />
+			<input id="date" name="date" placeholder=".air-date" />
 		</label>
 
 		<label>
@@ -299,7 +326,7 @@
 					</div>
 				</span>
 			</div>
-			<input name="dateFormat" required placeholder="Jan 02, 2006" />
+			<input id="date-format" name="dateFormat" placeholder="Jan 02, 2006" />
 		</label>
 
 		<label>
@@ -328,7 +355,7 @@
 					</div>
 				</span>
 			</div>
-			<input name="link" required placeholder=".title > a/href" />
+			<input id="link" name="link" placeholder=".title > a/href" />
 		</label>
 
 		<label>
