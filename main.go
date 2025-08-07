@@ -16,6 +16,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", handleRequest)
+	log.Println("listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -115,7 +116,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		item, err := extractor.extract(n)
+		item, err := extractor.extract(n, *url)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -258,7 +259,7 @@ func (m AttrExtractor) extractAttr(n *html.Node) *string {
 	}
 }
 
-func (e ItemExtractor) extract(n *html.Node) (*feeds.Item, error) {
+func (e ItemExtractor) extract(n *html.Node, u url.URL) (*feeds.Item, error) {
 	title := cascadia.Query(n, e.title)
 	if title == nil {
 		return nil, errors.New("failed to query the title")
@@ -270,6 +271,11 @@ func (e ItemExtractor) extract(n *html.Node) (*feeds.Item, error) {
 		link := e.link.extractAttr(n)
 
 		if link != nil {
+			if strings.HasPrefix(*link, "/") {
+				absolute := url.URL{Scheme: u.Scheme, Host: u.Host, Path: *link}
+				*link = absolute.String()
+			}
+
 			item.Link = &feeds.Link{Href: *link}
 			item.Id = *link
 		}
